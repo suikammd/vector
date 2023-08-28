@@ -5,6 +5,7 @@ use http::StatusCode;
 use snafu::Snafu;
 use tracing::Instrument;
 
+use crate::http::MaybeAuth;
 use crate::sinks::loki::config::{CompressionConfigAdapter, ExtendedCompression};
 use crate::{
     http::{Auth, HttpClient},
@@ -96,6 +97,7 @@ impl LokiService {
         path: String,
         auth: Option<Auth>,
     ) -> crate::Result<Self> {
+        let auth = endpoint.auth.choose_one(&auth)?;
         let endpoint = endpoint.append_path(&path)?.with_auth(auth);
 
         Ok(Self { client, endpoint })
