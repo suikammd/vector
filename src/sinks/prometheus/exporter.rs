@@ -82,11 +82,16 @@ pub struct PrometheusExporterConfig {
     pub default_namespace: Option<String>,
 
     /// The address to expose for scraping.
-    ///
-    /// The metrics are exposed at the typical Prometheus exporter path, `/metrics`.
     #[serde(default = "default_address")]
     #[configurable(metadata(docs::examples = "192.160.0.10:9598"))]
     pub address: SocketAddr,
+
+    /// The path to expose for scraping.
+    ///
+    /// The Prometheus exporter path metrics exposed at, default is `/metrics`.
+    #[serde(default = "default_path")]
+    #[configurable(metadata(docs::examples = "/metrics"))]
+    pub path: String,
 
     #[configurable(derived)]
     pub auth: Option<Auth>,
@@ -156,6 +161,7 @@ impl Default for PrometheusExporterConfig {
         Self {
             default_namespace: None,
             address: default_address(),
+            path: default_path(),
             auth: None,
             tls: None,
             buckets: super::default_histogram_buckets(),
@@ -170,6 +176,10 @@ impl Default for PrometheusExporterConfig {
 
 const fn default_address() -> SocketAddr {
     SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9598)
+}
+
+fn default_path() -> String {
+    "/metrics".to_string()
 }
 
 const fn default_distributions_as_summaries() -> bool {
@@ -386,6 +396,7 @@ fn authorized(req: &Request<Body>, auth: &Option<Auth>) -> bool {
 #[derive(Clone)]
 struct Handler {
     auth: Option<Auth>,
+    path: String,
     default_namespace: Option<String>,
     buckets: Box<[f64]>,
     quantiles: Box<[f64]>,
@@ -410,7 +421,7 @@ impl Handler {
                 );
             }
 
-            (true, &Method::GET, "/metrics") => {
+            (true, &Method::GET, path) if self.path.as_str() == path => {
                 let metrics = metrics.read().expect(LOCK_FAILED);
 
                 let count = metrics.len();
@@ -476,6 +487,7 @@ impl PrometheusExporter {
             buckets: self.config.buckets.clone().into(),
             quantiles: self.config.quantiles.clone().into(),
             auth: self.config.auth.clone(),
+            path: self.config.path.clone(),
         };
 
         let span = Span::current();
@@ -803,7 +815,7 @@ mod tests {
         let event2 = Event::from(event2.into_metric().with_timestamp(Some(timestamp2)));
         let events = vec![event1, event2];
 
-        let body = export_and_fetch(None, events, false).await;
+        let body = export_and_fetch(None, events, false, "/metrics").await;
         let timestamp = timestamp2.timestamp_millis();
         assert_eq!(
             body,
@@ -826,7 +838,7 @@ mod tests {
         let event = Event::from(event.into_metric().with_timestamp(Some(timestamp)));
         let events = vec![event];
 
-        let body = export_and_fetch(None, events, true).await;
+        let body = export_and_fetch(None, events, true, "/metrics").await;
         assert_eq!(
             body,
             format!(
@@ -873,6 +885,7 @@ mod tests {
         tls_config: Option<TlsEnableableConfig>,
         mut events: Vec<Event>,
         suppress_timestamp: bool,
+        custom_path: &str,
     ) -> String {
         trace_init();
 
@@ -882,6 +895,7 @@ mod tests {
         let address = next_addr();
         let config = PrometheusExporterConfig {
             address,
+            path: custom_path.to_string(),
             tls: tls_config,
             suppress_timestamp,
             ..Default::default()
@@ -908,7 +922,7 @@ mod tests {
         // Events are marked as delivered as soon as they are aggregated.
         assert_eq!(receiver.try_recv(), Ok(BatchStatus::Delivered));
 
-        let request = Request::get(format!("{}://{}/metrics", proto, address))
+        let request = Request::get(format!("{}://{}{}", proto, address, custom_path))
             .body(Body::empty())
             .expect("Error creating request.");
         let proxy = ProxyConfig::default();
@@ -1007,7 +1021,7 @@ mod tests {
         let (name2, event2) = tests::create_metric_set(None, vec!["0", "1", "2"]);
         let events = vec![event1, event2];
 
-        let body = export_and_fetch(tls_config, events, false).await;
+        let body = export_and_fetch(tls_config, events, false, "/api/v1/metrics").await;
 
         assert!(body.contains(&format!(
             indoc! {r#"

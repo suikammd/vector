@@ -697,6 +697,7 @@ mod test {
             &["in"],
             PrometheusExporterConfig {
                 address: out_addr,
+                path: "/metrics".to_string(),
                 auth: None,
                 tls: None,
                 default_namespace: Some("vector".into()),
