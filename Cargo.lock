@@ -4584,8 +4584,30 @@ dependencies = [
  "rand 0.8.5",
  "thiserror 1.0.68",
  "tinyvec",
+ "tokio",
  "tracing 0.1.41",
  "url",
+]
+
+[[package]]
+name = "hickory-resolver"
+version = "0.24.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cbb117a1ca520e111743ab2f6688eddee69db4e0ea242545a604dce8a66fd22e"
+dependencies = [
+ "cfg-if",
+ "futures-util",
+ "hickory-proto",
+ "ipconfig",
+ "lru-cache",
+ "once_cell",
+ "parking_lot",
+ "rand 0.8.5",
+ "resolv-conf",
+ "smallvec",
+ "thiserror 1.0.68",
+ "tokio",
+ "tracing 0.1.41",
 ]
 
 [[package]]
@@ -8464,8 +8486,11 @@ checksum = "566cafdd92868e0939d3fb961bd0dc25fcfaaed179291093b3d43e6b3150ea10"
 dependencies = [
  "base64 0.22.1",
  "bytes 1.10.1",
+ "encoding_rs",
  "futures-core",
  "futures-util",
+ "h2 0.4.8",
+ "hickory-resolver",
  "http 1.1.0",
  "http-body 1.0.0",
  "http-body-util",
@@ -8489,6 +8514,7 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "sync_wrapper 0.1.2",
+ "system-configuration",
  "tokio",
  "tokio-native-tls",
  "tokio-rustls 0.25.0",
@@ -11429,7 +11455,7 @@ dependencies = [
  "rdkafka",
  "redis",
  "regex",
- "reqwest 0.11.26",
+ "reqwest 0.12.4",
  "rmp-serde",
  "rmpv",
  "roaring",
